@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -127,19 +127,23 @@ if query and models:
         else:
             cols.extend([c for c in fc_p_cols if "log2FC" in c])
         
-        # Create display version with clean formatting
+        # Create display table with clean string formatting
         display_table = display_df[cols].copy()
         for col in [c for c in cols if "log2FC" in c]:
             display_table[col] = display_table[col].map(lambda x: f"{x:.2f}" if pd.notna(x) else "")
-        for col in [c for c in cols if "p-value" in c]:
+        for col in [c for c in cols if "p-value" in col]:
             display_table[col] = display_table[col].map(lambda x: f"{x:.4f}" if pd.notna(x) else "")
         
-        # Color coding using numeric values
+        # Color coding (applied to numeric version)
         def color_fc(val):
-            if pd.isna(val):
+            if pd.isna(val) or val == "":
                 return ''
-            if abs(val) >= fc_color_thresh:
-                return 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
+            try:
+                num_val = float(val)
+                if abs(num_val) >= fc_color_thresh:
+                    return 'background-color: #90EE90' if num_val > 0 else 'background-color: #FFB3B3'
+            except:
+                pass
             return ''
         
         styled = display_table.style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
