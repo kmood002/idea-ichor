@@ -27,16 +27,21 @@ with col3:
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
-    # Use positional columns (Genes = col 1, Protein Name = col 2)
+    # Search in Gene (col 1) and Protein Name (col 2)
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)   # Genes
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)   # Protein Name
+        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)
     
     res = df[mask].copy()
     
-    fc_cols = ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']
-    p_cols = [col for col in df.columns if col.endswith('.1') and 'NAIVE' in col]
+    # Find FC columns by position (they are after the peptide counts)
+    fc_cols = []
+    for i, col in enumerate(df.columns):
+        if str(col).startswith('DAY') and '/NAIVE' in str(col) and not str(col).endswith('.1'):
+            fc_cols.append(col)
+    
+    p_cols = [col for col in df.columns if str(col).endswith('.1') and 'NAIVE' in str(col)]
     
     for c in fc_cols + p_cols:
         if c in res.columns:
@@ -59,7 +64,7 @@ if query:
         
         if not filtered.empty:
             st.success(f"✅ Found {len(filtered)} matching proteins")
-            display_cols = list(df.columns[:3]) + ['Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
+            display_cols = list(df.columns[1:3]) + ['Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
             st.dataframe(filtered[display_cols], use_container_width=True, hide_index=True)
             st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
         else:
@@ -67,4 +72,4 @@ if query:
     else:
         st.info("No matching genes found.")
 
-st.caption("Test: Ca1, Alb, Col1a1, Gapdh")
+st.caption("Test searches: Ca1, Alb, Gapdh, Col1a1")
