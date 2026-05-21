@@ -111,7 +111,6 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column order
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
@@ -139,15 +138,15 @@ if query and models:
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
         
-        # Volcano Plot Button
-        if st.button("Show Volcano Plot (Day 7)"):
+        # Volcano Plot
+        if st.button("Show Volcano Plot (Day 7 vs NAIVE)"):
             plot_df = display_df.copy()
-            plot_df['-log10(p-value)'] = -np.log10(plot_df['Day 7 p-value'].replace(0, 1e-10))
+            plot_df['-log10(p-value)'] = -pd.np.log10(plot_df['Day 7 p-value'].replace(0, 1e-10))
             fig = px.scatter(plot_df, x="Day 7 log2FC", y="-log10(p-value)", 
-                            hover_data=["Gene", "Protein Name"],
+                            hover_data=["Gene", "Protein Name", "Model"],
                             title="Volcano Plot - Day 7 vs NAIVE",
                             labels={"Day 7 log2FC": "log2 Fold Change"})
-            fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")
+            fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray", annotation_text="p=0.05")
             fig.add_vline(x=1, line_dash="dash", line_color="gray")
             fig.add_vline(x=-1, line_dash="dash", line_color="gray")
             st.plotly_chart(fig, use_container_width=True)
