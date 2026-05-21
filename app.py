@@ -50,7 +50,7 @@ show_species = st.sidebar.checkbox("Species", value=True)
 show_strain = st.sidebar.checkbox("Strain", value=True)
 show_gender = st.sidebar.checkbox("Gender", value=True)
 show_tissue = st.sidebar.checkbox("Tissue", value=True)
-show_pvalues = st.sidebar.checkbox("P-values", value=True)
+show_pvalues = st.sidebar.checkbox("P-values", value=False)   # Default: OFF
 
 st.sidebar.header("Color Coding")
 fc_color_thresh = st.sidebar.slider("Color |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
@@ -146,7 +146,7 @@ if query and models:
                             hover_data=["Gene", "Protein Name", "Model"],
                             title="Volcano Plot - Day 7 vs NAIVE",
                             labels={"Day 7 log2FC": "log2 Fold Change"})
-            fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray", annotation_text="p=0.05")
+            fig.add_hline(y=-pd.np.log10(0.05), line_dash="dash", line_color="gray")
             fig.add_vline(x=1, line_dash="dash", line_color="gray")
             fig.add_vline(x=-1, line_dash="dash", line_color="gray")
             st.plotly_chart(fig, use_container_width=True)
