@@ -9,10 +9,8 @@ st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Co
 
 @st.cache_data
 def load_data():
-    # Robust loading for this exact file
-    df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)  # Try header=2
+    df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)
     df.columns = [str(col).strip() for col in df.columns]
-    
     st.success(f"✅ Loaded {len(df):,} proteins")
     return df
 
@@ -30,10 +28,10 @@ if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
     mask = pd.Series(False, index=df.index)
-    for col in df.columns:
-        if any(k in str(col).lower() for k in ['gene', 'protein', 'name']):
-            for term in terms:
-                mask |= df[col].astype(str).str.upper().str.contains(term, na=False)
+    for term in terms:
+        for col in df.columns:
+            if any(k in str(col).lower() for k in ['gene', 'protein', 'name']):
+                mask |= df[col].astype(str).str.upper().str.contains(term, na=False, regex=False)
     
     res = df[mask].copy()
     
@@ -49,7 +47,7 @@ if query:
         res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
         
         def get_direction(row):
-            mt = row['Max Time']
+            mt = row.get('Max Time')
             if pd.isna(mt) or mt not in row:
                 return 'N/A'
             val = row[mt]
@@ -69,4 +67,4 @@ if query:
     else:
         st.info("No matching genes found.")
 
-st.caption("Try searching: Ca1 or Alb")
+st.caption("Test searches: Ca1, Alb, Gapdh, Col1a1")
