@@ -29,14 +29,13 @@ if query:
     
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)  # Genes
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Protein Name
+        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)
     
     res = df[mask].copy()
     
-    # Use positional columns for FC (they start around column 23-25)
     fc_cols = df.columns[23:26].tolist()   # DAY2/NAIVE, DAY7/NAIVE, DAY14/NAIVE
-    p_cols = df.columns[26:29].tolist()    # corresponding p-values
+    p_cols = df.columns[26:29].tolist()
     
     for c in fc_cols + p_cols:
         if c in res.columns:
@@ -57,16 +56,17 @@ if query:
         
         if not filtered.empty:
             st.success(f"✅ Found {len(filtered)} matching proteins")
-            display = filtered.iloc[:, [1,2]].copy()  # Genes and Protein Name
+            display = filtered.iloc[:, [1, 2]].copy()  # Gene, Protein Name
+            display.columns = ['Gene', 'Protein Name']
             display['Max |log2FC|'] = filtered['Max |log2FC|']
             display['Max Time'] = filtered['Max Time']
             display['Direction'] = filtered['Direction']
             display = pd.concat([display, filtered[fc_cols]], axis=1)
             st.dataframe(display, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
+            st.download_button("📥 Download Results", filtered.to_csv(index=False), "dryeye_results.csv")
         else:
-            st.warning("No proteins meet the thresholds (try lowering them).")
+            st.warning("No proteins meet the thresholds.")
     else:
         st.info("No matching genes found.")
 
-st.caption("Working searches: Ca1, Alb, Gapdh, Col1a1, Actg1")
+st.caption("Ready for additional models/tissues. Let me know what to improve next.")
