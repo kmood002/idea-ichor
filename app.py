@@ -4,8 +4,14 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
-st.subheader("Differential Expression Atlas (IDEA)")
+# Logo (place logo.png in the repo root)
+logo_path = "logo.png"
+if Path(logo_path).exists():
+    st.image(logo_path, width=250)
+else:
+    st.image("image.png", width=250)  # fallback if you uploaded image.png
+
+st.subheader("Ichor Differential Expression Atlas (IDEA)")
 
 # Load all data-*.xlsx files
 data_files = list(Path(".").glob("data-*.xlsx"))
@@ -16,19 +22,16 @@ for file in data_files:
     model_key = file.stem.replace("data-", "")
     xls = pd.ExcelFile(file)
     
-    # Cover sheet - key-value + model name from B1
     cover = pd.read_excel(xls, "cover", header=None)
     meta = dict(zip(cover.iloc[:, 0].astype(str).str.strip(), cover.iloc[:, 1].astype(str).str.strip()))
     
-    # Use cell B1 as the official Model name
-    model_name = meta.get("Model", model_key) if "Model" in meta else cover.iloc[0, 1] if len(cover) > 0 else model_key
+    model_name = meta.get("Model", model_key) if "Model" in meta else (cover.iloc[0, 1] if len(cover) > 0 else model_key)
     
     log2 = pd.read_excel(xls, "log2")
     
     models[model_name] = {
         "meta": meta,
-        "log2": log2,
-        "key": model_key
+        "log2": log2
     }
 
 # Search
@@ -71,5 +74,9 @@ if query and models:
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
+
+# Footer
+st.markdown("---")
+st.markdown("**© Ichor Life Sciences, Inc.** All rights reserved. This tool and its contents are proprietary to Ichor Life Sciences. Unauthorized use or distribution is prohibited. [Visit ichorlifesciences.com](https://www.ichorlifesciences.com)")
 
 st.caption("Multi-model support active. Add more `data-*.xlsx` files as needed.")
