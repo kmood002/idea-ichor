@@ -11,6 +11,7 @@ st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Co
 def load_data():
     df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=1)
     df.columns = [str(col).strip() for col in df.columns]
+    st.success(f"✅ Loaded {len(df):,} proteins")
     return df
 
 df = load_data()
@@ -18,7 +19,7 @@ df = load_data()
 # Search & Filters
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Alb, Gapdh, Col1a1")
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Alb, Gapdh, Col1a1, Actg1")
 with col2:
     fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
 with col3:
@@ -26,13 +27,21 @@ with col3:
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
-    mask = df['Genes'].astype(str).str.upper().str.contains('|'.join(terms), na=False) | \
-           df.get('Protein Name', pd.Series()).astype(str).str.upper().str.contains('|'.join(terms), na=False)
+    
+    # Robust column search
+    gene_col = next((col for col in df.columns if 'gene' in col.lower()), 'Genes')
+    name_col = next((col for col in df.columns if 'protein name' in col.lower() or 'name' in col.lower()), 'Protein Name')
+    
+    mask = pd.Series([False] * len(df))
+    if gene_col in df.columns:
+        mask |= df[gene_col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
+    if name_col in df.columns:
+        mask |= df[name_col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
     
     res = df[mask].copy()
     
-    fc_cols = ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']
-    p_cols = [c for c in df.columns if 'NAIVE.1' in str(c)]
+    fc_cols = [col for col in df.columns if col.startswith('DAY') and '/NAIVE' in col and not col.endswith('.1')]
+    p_cols = [col for col in df.columns if col.startswith('DAY') and '/NAIVE' in col and col.endswith('.1')]
     
     for c in fc_cols + p_cols:
         if c in res.columns:
@@ -46,10 +55,10 @@ if query:
     
     if not filtered.empty:
         st.success(f"✅ Found {len(filtered)} matching proteins")
-        display_cols = ['Genes', 'Protein Name', 'Max |log2FC|', 'Max Time', 'Direction'] + fc_cols[:3]
-        st.dataframe(filtered[display_cols], use_container_width=True, hide_index=True)
-        st.download_button("📥 Download CSV", filtered.to_csv(index=False), "dryeye_results.csv", "text/csv")
+        display_cols = ['Genes', 'Protein Name', 'Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
+        st.dataframe(filtered[display_cols].head(50), use_container_width=True, hide_index=True)  # limit for performance
+        st.download_button("📥 Download Full Results CSV", filtered.to_csv(index=False), "dryeye_results.csv")
     else:
         st.warning("No proteins meet the current thresholds.")
 
-st.caption("✅ Cornea dataset loaded. Ready for more models.")
+st.caption("Initial cornea dataset loaded. Ready for expansion.")
