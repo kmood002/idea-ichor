@@ -58,14 +58,13 @@ if query and models:
         p_df = data["pval"]
         meta = data["meta"]
         
-        # Search
         mask = (log2_df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
                (log2_df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
                (log2_df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
         
         hits = log2_df[mask].copy()
         if len(hits) > 0:
-            for _, row in hits.iterrows():
+            for idx, row in hits.iterrows():
                 results.append({
                     "Protein Accession": row.iloc[0],
                     "Gene": row.iloc[1],
@@ -76,28 +75,27 @@ if query and models:
                     "Gender": meta.get("Gender", ""),
                     "Tissue": meta.get("Tissue", ""),
                     "Day 2 log2FC": round(row.iloc[3], 2) if len(row) > 3 else None,
-                    "Day 2 p-value": round(p_df.iloc[:, 3].iloc[row.name], 4) if len(p_df.columns) > 3 else None,
+                    "Day 2 p-value": round(p_df.iloc[idx, 3], 4) if len(p_df.columns) > 3 else None,
                     "Day 7 log2FC": round(row.iloc[4], 2) if len(row) > 4 else None,
-                    "Day 7 p-value": round(p_df.iloc[:, 4].iloc[row.name], 4) if len(p_df.columns) > 4 else None,
+                    "Day 7 p-value": round(p_df.iloc[idx, 4], 4) if len(p_df.columns) > 4 else None,
                     "Day 14 log2FC": round(row.iloc[5], 2) if len(row) > 5 else None,
-                    "Day 14 p-value": round(p_df.iloc[:, 5].iloc[row.name], 4) if len(p_df.columns) > 5 else None,
+                    "Day 14 p-value": round(p_df.iloc[idx, 5], 4) if len(p_df.columns) > 5 else None,
                 })
     
     if results:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column order: Model between Protein Name and Species
-        cols = []
+        # Desired column order
+        cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
-        if show_gene: cols.append("Gene")
-        if show_protein: cols.append("Protein Name")
         if show_species: cols.append("Species")
         if show_strain: cols.append("Strain")
         if show_gender: cols.append("Gender")
         if show_tissue: cols.append("Tissue")
         
-        cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
+        cols.extend(["Day 2 log2FC", "Day 2 p-value", 
+                    "Day 7 log2FC", "Day 7 p-value", 
                     "Day 14 log2FC", "Day 14 p-value"])
         
         st.dataframe(display_df[cols], use_container_width=True, hide_index=True)
