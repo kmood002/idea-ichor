@@ -4,12 +4,10 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-# Logo - Improved rendering to prevent left-side cropping
+# Logo - Reverted to simple left-aligned version
 logo_path = "logo.png"
 if Path(logo_path).exists():
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col2:
-        st.image(logo_path, width=380)
+    st.image(logo_path, width=320)
 else:
     st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
@@ -81,7 +79,6 @@ if query and models:
                 d7_p = p_df.iloc[idx, 4] if len(p_df.columns) > 4 else None
                 d14_p = p_df.iloc[idx, 5] if len(p_df.columns) > 5 else None
                 
-                # Apply thresholds only if user changed from default
                 include = True
                 if fc_thresh > 0:
                     include &= any(abs(x or 0) >= fc_thresh for x in [d2_fc, d7_fc, d14_fc])
@@ -110,7 +107,6 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column order: Model between Protein Name and Species
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
