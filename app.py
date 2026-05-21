@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-VERSION = "1.6"
+VERSION = "1.7"
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -55,6 +55,7 @@ show_pvalues = st.sidebar.checkbox("P-values", value=False)
 
 st.sidebar.header("Color Coding")
 fc_color_thresh = st.sidebar.slider("Color |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
+p_color_thresh = st.sidebar.slider("Color p-value threshold (literature default)", 0.0001, 0.1, 0.05, 0.001)
 
 # Search
 query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
@@ -134,19 +135,29 @@ if query and models:
         for col in [c for c in cols if "p-value" in col]:
             display_table[col] = display_table[col].map(lambda x: f"{x:.4f}" if pd.notna(x) else "")
         
-        # Color coding (applied to numeric version)
+        # Color coding
         def color_fc(val):
-            if pd.isna(val) or val == "":
-                return ''
+            if pd.isna(val) or val == "": return ''
             try:
-                num_val = float(val)
-                if abs(num_val) >= fc_color_thresh:
-                    return 'background-color: #90EE90' if num_val > 0 else 'background-color: #FFB3B3'
+                num = float(val)
+                if abs(num) >= fc_color_thresh:
+                    return 'background-color: #90EE90' if num > 0 else 'background-color: #FFB3B3'
             except:
                 pass
             return ''
         
-        styled = display_table.style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
+        def color_p(val):
+            if pd.isna(val) or val == "": return ''
+            try:
+                num = float(val)
+                if num <= p_color_thresh:
+                    return 'background-color: #90EE90'  # significant = green
+            except:
+                pass
+            return ''
+        
+        styled = display_table.style.map(color_fc, subset=[c for c in cols if "log2FC" in c]) \
+                                     .map(color_p, subset=[c for c in cols if "p-value" in c])
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
