@@ -50,7 +50,7 @@ show_species = st.sidebar.checkbox("Species", value=True)
 show_strain = st.sidebar.checkbox("Strain", value=True)
 show_gender = st.sidebar.checkbox("Gender", value=True)
 show_tissue = st.sidebar.checkbox("Tissue", value=True)
-show_pvalues = st.sidebar.checkbox("P-values", value=False)   # Default: OFF
+show_pvalues = st.sidebar.checkbox("P-values", value=False)
 
 st.sidebar.header("Color Coding")
 fc_color_thresh = st.sidebar.slider("Color |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
@@ -75,13 +75,13 @@ if query and models:
         hits = log2_df[mask].copy()
         if len(hits) > 0:
             for idx, row in hits.iterrows():
-                d2_fc = row.iloc[3] if len(row) > 3 else None
-                d7_fc = row.iloc[4] if len(row) > 4 else None
-                d14_fc = row.iloc[5] if len(row) > 5 else None
+                d2_fc = round(row.iloc[3], 2) if len(row) > 3 and pd.notna(row.iloc[3]) else None
+                d7_fc = round(row.iloc[4], 2) if len(row) > 4 and pd.notna(row.iloc[4]) else None
+                d14_fc = round(row.iloc[5], 2) if len(row) > 5 and pd.notna(row.iloc[5]) else None
                 
-                d2_p = p_df.iloc[idx, 3] if len(p_df.columns) > 3 else None
-                d7_p = p_df.iloc[idx, 4] if len(p_df.columns) > 4 else None
-                d14_p = p_df.iloc[idx, 5] if len(p_df.columns) > 5 else None
+                d2_p = round(p_df.iloc[idx, 3], 4) if len(p_df.columns) > 3 and pd.notna(p_df.iloc[idx, 3]) else None
+                d7_p = round(p_df.iloc[idx, 4], 4) if len(p_df.columns) > 4 and pd.notna(p_df.iloc[idx, 4]) else None
+                d14_p = round(p_df.iloc[idx, 5], 4) if len(p_df.columns) > 5 and pd.notna(p_df.iloc[idx, 5]) else None
                 
                 include = True
                 if fc_filter > 0:
@@ -99,12 +99,12 @@ if query and models:
                         "Strain": meta.get("Strain", ""),
                         "Gender": meta.get("Gender", ""),
                         "Tissue": meta.get("Tissue", ""),
-                        "Day 2 log2FC": round(d2_fc, 2) if d2_fc is not None else None,
-                        "Day 2 p-value": round(d2_p, 4) if d2_p is not None else None,
-                        "Day 7 log2FC": round(d7_fc, 2) if d7_fc is not None else None,
-                        "Day 7 p-value": round(d7_p, 4) if d7_p is not None else None,
-                        "Day 14 log2FC": round(d14_fc, 2) if d14_fc is not None else None,
-                        "Day 14 p-value": round(d14_p, 4) if d14_p is not None else None,
+                        "Day 2 log2FC": d2_fc,
+                        "Day 2 p-value": d2_p,
+                        "Day 7 log2FC": d7_fc,
+                        "Day 7 p-value": d7_p,
+                        "Day 14 log2FC": d14_fc,
+                        "Day 14 p-value": d14_p,
                     })
     
     if results:
