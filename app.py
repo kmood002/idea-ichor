@@ -18,7 +18,7 @@ df = load_data()
 
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Alb, Gapdh, Col1a1")
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Ca1, Alb, Gapdh, Col1a1")
 with col2:
     fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
 with col3:
@@ -28,15 +28,14 @@ if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
     mask = pd.Series(False, index=df.index)
-    for col in df.columns:
-        if 'Genes' in col or 'gene' in col.lower():
-            mask |= df[col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
-        if 'Protein Name' in col or 'name' in col.lower():
-            mask |= df[col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
+    for term in terms:
+        for col in df.columns:
+            if any(k in col.lower() for k in ['gene', 'genes', 'protein', 'name']):
+                mask |= df[col].astype(str).str.upper().str.contains(term, na=False)
     
     res = df[mask].copy()
     
-    fc_cols = [col for col in df.columns if col in ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']]
+    fc_cols = ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']
     p_cols = [col for col in df.columns if col.endswith('.1') and 'NAIVE' in col]
     
     for c in fc_cols + p_cols:
@@ -49,7 +48,7 @@ if query:
         
         def get_direction(row):
             mt = row['Max Time']
-            if pd.isna(mt) or mt not in row:
+            if pd.isna(mt) or mt not in row.index:
                 return 'N/A'
             val = row[mt]
             return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
@@ -66,6 +65,6 @@ if query:
         else:
             st.warning("No proteins meet the selected thresholds.")
     else:
-        st.info("No matching genes found.")
+        st.info("No matching genes found for your search term.")
 
-st.caption("Initial dataset ready. We can now add more models/tissues.")
+st.caption("Try searching: Ca1, Alb, Col1a1, Gapdh")
