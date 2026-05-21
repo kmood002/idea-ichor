@@ -33,11 +33,11 @@ for file in data_files:
         "log2": log2
     }
 
-# Column toggles
+# Sidebar toggles
 st.sidebar.header("Display Columns")
+show_model = st.sidebar.checkbox("Model", value=True)
 show_gene = st.sidebar.checkbox("Gene", value=True)
 show_protein = st.sidebar.checkbox("Protein Name", value=True)
-show_model = st.sidebar.checkbox("Model", value=True)
 show_species = st.sidebar.checkbox("Species", value=True)
 show_strain = st.sidebar.checkbox("Strain", value=True)
 show_gender = st.sidebar.checkbox("Gender", value=True)
@@ -83,20 +83,20 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column selection
-        cols_to_show = []
-        if show_model: cols_to_show.append("Model")
-        if show_gene: cols_to_show.append("Gene")
-        if show_protein: cols_to_show.append("Protein Name")
-        if show_species: cols_to_show.append("Species")
-        if show_strain: cols_to_show.append("Strain")
-        if show_gender: cols_to_show.append("Gender")
-        if show_tissue: cols_to_show.append("Tissue")
+        # Column order with Model between Protein Name and Species
+        cols = []
+        if show_model: cols.append("Model")
+        if show_gene: cols.append("Gene")
+        if show_protein: cols.append("Protein Name")
+        if show_species: cols.append("Species")
+        if show_strain: cols.append("Strain")
+        if show_gender: cols.append("Gender")
+        if show_tissue: cols.append("Tissue")
         
-        cols_to_show.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
-                           "Day 14 log2FC", "Day 14 p-value"])
+        cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
+                    "Day 14 log2FC", "Day 14 p-value"])
         
-        st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
+        st.dataframe(display_df[cols], use_container_width=True, hide_index=True)
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
