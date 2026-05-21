@@ -11,7 +11,7 @@ else:
     st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
 st.subheader("Ichor Differential Expression Atlas (IDEA)")
-st.caption("**Dry Eye Model Explorer**")
+st.caption("**Pre-Clinical Model Explorer**")
 
 # Load all data-*.xlsx files
 data_files = list(Path(".").glob("data-*.xlsx"))
@@ -34,6 +34,11 @@ for file in data_files:
         "log2": log2,
         "pval": pval
     }
+
+# Threshold selectors (default = no filtering)
+st.sidebar.header("Filters")
+fc_thresh = st.sidebar.slider("|log2FC| ≥ (optional)", 0.0, 5.0, 0.0, 0.1, help="0.0 = no filter")
+p_thresh = st.sidebar.slider("p-value < (optional)", 0.0001, 0.1, 0.1, 0.001, help="0.1 = no filter")
 
 # Sidebar toggles
 st.sidebar.header("Display Columns")
@@ -65,28 +70,43 @@ if query and models:
         hits = log2_df[mask].copy()
         if len(hits) > 0:
             for idx, row in hits.iterrows():
-                results.append({
-                    "Protein Accession": row.iloc[0],
-                    "Gene": row.iloc[1],
-                    "Protein Name": row.iloc[2],
-                    "Model": model_name,
-                    "Species": meta.get("Species", ""),
-                    "Strain": meta.get("Strain", ""),
-                    "Gender": meta.get("Gender", ""),
-                    "Tissue": meta.get("Tissue", ""),
-                    "Day 2 log2FC": round(row.iloc[3], 2) if len(row) > 3 else None,
-                    "Day 2 p-value": round(p_df.iloc[idx, 3], 4) if len(p_df.columns) > 3 else None,
-                    "Day 7 log2FC": round(row.iloc[4], 2) if len(row) > 4 else None,
-                    "Day 7 p-value": round(p_df.iloc[idx, 4], 4) if len(p_df.columns) > 4 else None,
-                    "Day 14 log2FC": round(row.iloc[5], 2) if len(row) > 5 else None,
-                    "Day 14 p-value": round(p_df.iloc[idx, 5], 4) if len(p_df.columns) > 5 else None,
-                })
+                d2_fc = row.iloc[3] if len(row) > 3 else None
+                d7_fc = row.iloc[4] if len(row) > 4 else None
+                d14_fc = row.iloc[5] if len(row) > 5 else None
+                
+                d2_p = p_df.iloc[idx, 3] if len(p_df.columns) > 3 else None
+                d7_p = p_df.iloc[idx, 4] if len(p_df.columns) > 4 else None
+                d14_p = p_df.iloc[idx, 5] if len(p_df.columns) > 5 else None
+                
+                # Apply thresholds only if user set them above 0 / below 0.1
+                include = True
+                if fc_thresh > 0:
+                    include = include and (abs(d2_fc or 0) >= fc_thresh or abs(d7_fc or 0) >= fc_thresh or abs(d14_fc or 0) >= fc_thresh)
+                if p_thresh < 0.1:
+                    include = include and ((d2_p or 1) < p_thresh or (d7_p or 1) < p_thresh or (d14_p or 1) < p_thresh)
+                
+                if include:
+                    results.append({
+                        "Protein Accession": row.iloc[0],
+                        "Gene": row.iloc[1],
+                        "Protein Name": row.iloc[2],
+                        "Model": model_name,
+                        "Species": meta.get("Species", ""),
+                        "Strain": meta.get("Strain", ""),
+                        "Gender": meta.get("Gender", ""),
+                        "Tissue": meta.get("Tissue", ""),
+                        "Day 2 log2FC": round(d2_fc, 2) if d2_fc is not None else None,
+                        "Day 2 p-value": round(d2_p, 4) if d2_p is not None else None,
+                        "Day 7 log2FC": round(d7_fc, 2) if d7_fc is not None else None,
+                        "Day 7 p-value": round(d7_p, 4) if d7_p is not None else None,
+                        "Day 14 log2FC": round(d14_fc, 2) if d14_fc is not None else None,
+                        "Day 14 p-value": round(d14_p, 4) if d14_p is not None else None,
+                    })
     
     if results:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Desired column order
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
@@ -94,8 +114,7 @@ if query and models:
         if show_gender: cols.append("Gender")
         if show_tissue: cols.append("Tissue")
         
-        cols.extend(["Day 2 log2FC", "Day 2 p-value", 
-                    "Day 7 log2FC", "Day 7 p-value", 
+        cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
                     "Day 14 log2FC", "Day 14 p-value"])
         
         st.dataframe(display_df[cols], use_container_width=True, hide_index=True)
