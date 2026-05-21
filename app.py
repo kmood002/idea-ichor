@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -12,15 +11,14 @@ st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Co
 def load_data():
     df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=1)
     df.columns = [str(col).strip() for col in df.columns]
-    st.success(f"✅ Loaded {len(df):,} proteins from cornea dataset")
+    st.success(f"✅ Loaded {len(df):,} proteins")
     return df
 
 df = load_data()
 
-# Search & Filters
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Alb, Gapdh, Col1a1, Actg1")
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Alb, Gapdh, Col1a1")
 with col2:
     fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
 with col3:
@@ -29,48 +27,45 @@ with col3:
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
-    # Robust column detection
-    gene_col = next((col for col in df.columns if col == 'Genes' or 'gene' in col.lower()), None)
-    name_col = next((col for col in df.columns if 'Protein Name' in col or 'name' in col.lower()), None)
-    
     mask = pd.Series(False, index=df.index)
-    if gene_col and gene_col in df.columns:
-        mask |= df[gene_col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
-    if name_col and name_col in df.columns:
-        mask |= df[name_col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
+    for col in df.columns:
+        if 'Genes' in col or 'gene' in col.lower():
+            mask |= df[col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
+        if 'Protein Name' in col or 'name' in col.lower():
+            mask |= df[col].astype(str).str.upper().str.contains('|'.join(terms), na=False)
     
     res = df[mask].copy()
     
     fc_cols = [col for col in df.columns if col in ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']]
-    p_cols = [col for col in df.columns if col.endswith('.1') and any(d in col for d in ['DAY2', 'DAY7', 'DAY14'])]
+    p_cols = [col for col in df.columns if col.endswith('.1') and 'NAIVE' in col]
     
     for c in fc_cols + p_cols:
         if c in res.columns:
             res[c] = pd.to_numeric(res[c], errors='coerce')
     
-    if not res.empty and len(fc_cols) > 0:
+    if len(res) > 0 and len(fc_cols) > 0:
         res['Max |log2FC|'] = res[fc_cols].abs().max(axis=1)
         res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
         
         def get_direction(row):
             mt = row['Max Time']
-            if pd.isna(mt) or mt not in row.index:
+            if pd.isna(mt) or mt not in row:
                 return 'N/A'
             val = row[mt]
             return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
         
         res['Direction'] = res.apply(get_direction, axis=1)
         
-        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1) < p_thresh)]
+        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1, skipna=True) < p_thresh)]
         
         if not filtered.empty:
             st.success(f"✅ Found {len(filtered)} matching proteins")
             display_cols = ['Genes', 'Protein Name', 'Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
             st.dataframe(filtered[display_cols], use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Full Results CSV", filtered.to_csv(index=False), "dryeye_results.csv")
+            st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
         else:
-            st.warning("No proteins meet the current thresholds.")
+            st.warning("No proteins meet the selected thresholds.")
     else:
-        st.info("No matching genes found for your search.")
+        st.info("No matching genes found.")
 
-st.caption("✅ Initial cornea dataset loaded. Additional models & tissues can be added easily.")
+st.caption("Initial dataset ready. We can now add more models/tissues.")
