@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-VERSION = "1.7"
+VERSION = "1.9"
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -20,6 +20,7 @@ st.caption(f"**Pre-Clinical Model Explorer** — Version {VERSION}")
 data_files = list(Path(".").glob("data-*.xlsx"))
 
 models = {}
+model_list = []
 for file in data_files:
     model_key = file.stem.replace("data-", "")
     xls = pd.ExcelFile(file)
@@ -37,11 +38,16 @@ for file in data_files:
         "log2": log2,
         "pval": pval
     }
+    model_list.append(model_name)
 
 # Sidebar
 st.sidebar.header("Filters")
 fc_filter = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
 p_filter = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
+
+# Model Filter
+st.sidebar.header("Model Filter")
+selected_models = st.sidebar.multiselect("Select Model(s)", options=model_list, default=model_list)
 
 st.sidebar.header("Display Columns")
 show_model = st.sidebar.checkbox("Model", value=True)
@@ -55,26 +61,32 @@ show_pvalues = st.sidebar.checkbox("P-values", value=False)
 
 st.sidebar.header("Color Coding")
 fc_color_thresh = st.sidebar.slider("Color |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
-p_color_thresh = st.sidebar.slider("Color p-value threshold (literature default)", 0.0001, 0.1, 0.05, 0.001)
+p_color_thresh = st.sidebar.slider("Color p-value threshold", 0.0001, 0.1, 0.05, 0.001)
 
-# Search
-query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
+# Search (blank = show all)
+query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name (leave blank for all)", 
                      placeholder="Ca1, Alb, Gapdh, Col1a1")
 
-if query and models:
-    terms = [t.strip().upper() for t in query.split(",") if t.strip()]
+if models:
+    terms = [t.strip().upper() for t in query.split(",") if t.strip()] if query else []
     results = []
     
     for model_name, data in models.items():
+        if model_name not in selected_models:
+            continue
+            
         log2_df = data["log2"]
         p_df = data["pval"]
         meta = data["meta"]
         
-        mask = (log2_df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
-               (log2_df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
-               (log2_df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
+        if not terms:
+            hits = log2_df.copy()
+        else:
+            mask = (log2_df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+                   (log2_df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+                   (log2_df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
+            hits = log2_df[mask].copy()
         
-        hits = log2_df[mask].copy()
         if len(hits) > 0:
             for idx, row in hits.iterrows():
                 d2_fc = round(float(row.iloc[3]), 2) if len(row) > 3 and pd.notna(row.iloc[3]) else None
@@ -128,7 +140,7 @@ if query and models:
         else:
             cols.extend([c for c in fc_p_cols if "log2FC" in c])
         
-        # Create display table with clean string formatting
+        # Create display table with clean formatting
         display_table = display_df[cols].copy()
         for col in [c for c in cols if "log2FC" in c]:
             display_table[col] = display_table[col].map(lambda x: f"{x:.2f}" if pd.notna(x) else "")
@@ -151,7 +163,7 @@ if query and models:
             try:
                 num = float(val)
                 if num <= p_color_thresh:
-                    return 'background-color: #90EE90'  # significant = green
+                    return 'background-color: #90EE90'
             except:
                 pass
             return ''
