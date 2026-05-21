@@ -16,27 +16,57 @@ def load_data():
 
 df = load_data()
 
-st.write("**First few rows for debugging:**")
-st.dataframe(df.iloc[:, :8].head(3), use_container_width=True)
-
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh")
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1, Actg1")
+with col2:
+    fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
+with col3:
+    p_thresh = st.slider("p-value <", 0.0001, 0.1, 0.05, 0.001)
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
-    st.write("**Searching for:**", terms)
     
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)  # Gene column
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Protein Name column
-    
-    st.write(f"**Raw matches found:** {mask.sum()}")
+        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)  # Genes
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Protein Name
     
     res = df[mask].copy()
     
-    if len(res) > 0:
-        st.dataframe(res.iloc[:, :8], use_container_width=True)
+    # Use positional columns for FC (they start around column 23-25)
+    fc_cols = df.columns[23:26].tolist()   # DAY2/NAIVE, DAY7/NAIVE, DAY14/NAIVE
+    p_cols = df.columns[26:29].tolist()    # corresponding p-values
+    
+    for c in fc_cols + p_cols:
+        if c in res.columns:
+            res[c] = pd.to_numeric(res[c], errors='coerce')
+    
+    if len(res) > 0 and len(fc_cols) > 0:
+        res['Max |log2FC|'] = res[fc_cols].abs().max(axis=1)
+        res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
+        
+        def get_direction(row):
+            mt = row['Max Time']
+            val = row[mt] if mt in row else None
+            return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
+        
+        res['Direction'] = res.apply(get_direction, axis=1)
+        
+        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1, skipna=True) < p_thresh)]
+        
+        if not filtered.empty:
+            st.success(f"✅ Found {len(filtered)} matching proteins")
+            display = filtered.iloc[:, [1,2]].copy()  # Genes and Protein Name
+            display['Max |log2FC|'] = filtered['Max |log2FC|']
+            display['Max Time'] = filtered['Max Time']
+            display['Direction'] = filtered['Direction']
+            display = pd.concat([display, filtered[fc_cols]], axis=1)
+            st.dataframe(display, use_container_width=True, hide_index=True)
+            st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
+        else:
+            st.warning("No proteins meet the thresholds (try lowering them).")
     else:
-        st.error("No matches — please tell me what the debug info above shows.")
+        st.info("No matching genes found.")
+
+st.caption("Working searches: Ca1, Alb, Gapdh, Col1a1, Actg1")
