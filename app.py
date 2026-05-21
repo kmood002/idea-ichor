@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from pathlib import Path
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -139,20 +138,6 @@ if query and models:
         styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
-        
-        # Volcano Plot
-        if st.button("Show Volcano Plot (Day 7 vs NAIVE)"):
-            plot_df = display_df.copy()
-            plot_df['-log10(p-value)'] = -pd.np.log10(plot_df['Day 7 p-value'].replace(0, 1e-10))
-            fig = px.scatter(plot_df, x="Day 7 log2FC", y="-log10(p-value)", 
-                            hover_data=["Gene", "Protein Name", "Model"],
-                            title="Volcano Plot - Day 7 vs NAIVE",
-                            labels={"Day 7 log2FC": "log2 Fold Change"})
-            fig.add_hline(y=-pd.np.log10(0.05), line_dash="dash", line_color="gray")
-            fig.add_vline(x=1, line_dash="dash", line_color="gray")
-            fig.add_vline(x=-1, line_dash="dash", line_color="gray")
-            st.plotly_chart(fig, use_container_width=True)
-        
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
