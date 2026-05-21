@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 from pathlib import Path
 
+VERSION = "1.2"
+
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
 # Logo
@@ -13,7 +15,7 @@ else:
     st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
 st.subheader("Ichor Differential Expression Atlas (IDEA)")
-st.caption("**Pre-Clinical Model Explorer**")
+st.caption(f"**Pre-Clinical Model Explorer** — Version {VERSION}")
 
 # Load all data-*.xlsx files
 data_files = list(Path(".").glob("data-*.xlsx"))
