@@ -27,10 +27,12 @@ for file in data_files:
     model_name = meta.get("Model", model_key) if "Model" in meta else (cover.iloc[0, 1] if len(cover) > 0 else model_key)
     
     log2 = pd.read_excel(xls, "log2")
+    pval = pd.read_excel(xls, "p")
     
     models[model_name] = {
         "meta": meta,
-        "log2": log2
+        "log2": log2,
+        "pval": pval
     }
 
 # Sidebar toggles
@@ -52,14 +54,16 @@ if query and models:
     results = []
     
     for model_name, data in models.items():
-        df = data["log2"]
+        log2_df = data["log2"]
+        p_df = data["pval"]
         meta = data["meta"]
         
-        mask = (df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
-               (df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
-               (df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
+        # Search
+        mask = (log2_df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+               (log2_df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+               (log2_df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
         
-        hits = df[mask].copy()
+        hits = log2_df[mask].copy()
         if len(hits) > 0:
             for _, row in hits.iterrows():
                 results.append({
@@ -72,18 +76,18 @@ if query and models:
                     "Gender": meta.get("Gender", ""),
                     "Tissue": meta.get("Tissue", ""),
                     "Day 2 log2FC": round(row.iloc[3], 2) if len(row) > 3 else None,
-                    "Day 2 p-value": round(row.iloc[6], 4) if len(row) > 6 else None,
+                    "Day 2 p-value": round(p_df.iloc[:, 3].iloc[row.name], 4) if len(p_df.columns) > 3 else None,
                     "Day 7 log2FC": round(row.iloc[4], 2) if len(row) > 4 else None,
-                    "Day 7 p-value": round(row.iloc[7], 4) if len(row) > 7 else None,
+                    "Day 7 p-value": round(p_df.iloc[:, 4].iloc[row.name], 4) if len(p_df.columns) > 4 else None,
                     "Day 14 log2FC": round(row.iloc[5], 2) if len(row) > 5 else None,
-                    "Day 14 p-value": round(row.iloc[8], 4) if len(row) > 8 else None,
+                    "Day 14 p-value": round(p_df.iloc[:, 5].iloc[row.name], 4) if len(p_df.columns) > 5 else None,
                 })
     
     if results:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column order with Model between Protein Name and Species
+        # Column order: Model between Protein Name and Species
         cols = []
         if show_model: cols.append("Model")
         if show_gene: cols.append("Gene")
