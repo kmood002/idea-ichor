@@ -4,10 +4,12 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-# Logo (higher resolution recommended)
+# Logo - Improved rendering to prevent left-side cropping
 logo_path = "logo.png"
 if Path(logo_path).exists():
-    st.image(logo_path, width=320)
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.image(logo_path, width=380)
 else:
     st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
@@ -108,6 +110,7 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
+        # Column order: Model between Protein Name and Species
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
