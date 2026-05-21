@@ -4,9 +4,10 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-# Logo
-if Path("logo.png").exists():
-    st.image("logo.png", width=250)
+# Logo (higher resolution recommended)
+logo_path = "logo.png"
+if Path(logo_path).exists():
+    st.image(logo_path, width=320)
 else:
     st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
@@ -35,12 +36,12 @@ for file in data_files:
         "pval": pval
     }
 
-# Threshold selectors (default = no filtering)
+# Sidebar Filters
 st.sidebar.header("Filters")
-fc_thresh = st.sidebar.slider("|log2FC| ≥ (optional)", 0.0, 5.0, 0.0, 0.1, help="0.0 = no filter")
-p_thresh = st.sidebar.slider("p-value < (optional)", 0.0001, 0.1, 0.1, 0.001, help="0.1 = no filter")
+fc_thresh = st.sidebar.slider("|log2FC| ≥ (0 = no filter)", 0.0, 5.0, 0.0, 0.1)
+p_thresh = st.sidebar.slider("p-value < (0.1 = no filter)", 0.0001, 0.1, 0.1, 0.001)
 
-# Sidebar toggles
+# Sidebar Column Toggles
 st.sidebar.header("Display Columns")
 show_model = st.sidebar.checkbox("Model", value=True)
 show_gene = st.sidebar.checkbox("Gene", value=True)
@@ -78,12 +79,12 @@ if query and models:
                 d7_p = p_df.iloc[idx, 4] if len(p_df.columns) > 4 else None
                 d14_p = p_df.iloc[idx, 5] if len(p_df.columns) > 5 else None
                 
-                # Apply thresholds only if user set them above 0 / below 0.1
+                # Apply thresholds only if user changed from default
                 include = True
                 if fc_thresh > 0:
-                    include = include and (abs(d2_fc or 0) >= fc_thresh or abs(d7_fc or 0) >= fc_thresh or abs(d14_fc or 0) >= fc_thresh)
+                    include &= any(abs(x or 0) >= fc_thresh for x in [d2_fc, d7_fc, d14_fc])
                 if p_thresh < 0.1:
-                    include = include and ((d2_p or 1) < p_thresh or (d7_p or 1) < p_thresh or (d14_p or 1) < p_thresh)
+                    include &= any((x or 1) < p_thresh for x in [d2_p, d7_p, d14_p])
                 
                 if include:
                     results.append({
