@@ -5,12 +5,20 @@ st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
 st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 st.subheader("Differential Expression Atlas (IDEA)")
+st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Cornea | C57BL/6 Mice")
 
 @st.cache_data
 def load_data():
+    # Robust loading for this specific file
     df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=1)
     df.columns = [str(col).strip() for col in df.columns]
-    st.write("**Columns loaded:**", df.columns.tolist()[:15])   # Debug
+    
+    # Fix common header issues in this file
+    if 'Genes' not in df.columns:
+        # Try skipping one more row if needed
+        df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)
+        df.columns = [str(col).strip() for col in df.columns]
+    
     st.success(f"✅ Loaded {len(df):,} proteins")
     return df
 
@@ -18,26 +26,53 @@ df = load_data()
 
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh")
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1")
+with col2:
+    fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
+with col3:
+    p_thresh = st.slider("p-value <", 0.0001, 0.1, 0.05, 0.001)
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
-    st.write("**Searching for:**", terms)   # Debug
-
+    
     mask = pd.Series(False, index=df.index)
     for col in df.columns:
-        if any(k in col.lower() for k in ['gene', 'protein', 'name']):
+        if any(k in str(col).lower() for k in ['gene', 'protein', 'name']):
             for term in terms:
                 mask |= df[col].astype(str).str.upper().str.contains(term, na=False)
     
     res = df[mask].copy()
-    st.success(f"Found {len(res)} rows before filtering")   # Debug
-
-    # Rest of logic...
-    fc_cols = [col for col in df.columns if 'DAY' in col and '/NAIVE' in col and not col.endswith('.1')]
-    st.write("**FC columns:**", fc_cols)   # Debug
-
-    if len(res) > 0:
-        st.dataframe(res[['Genes', 'Protein Name']].head(10), use_container_width=True)
+    
+    fc_cols = [col for col in df.columns if col.startswith('DAY') and '/NAIVE' in col and not col.endswith('.1')]
+    p_cols = [col for col in df.columns if col.endswith('.1') and 'NAIVE' in col]
+    
+    for c in fc_cols + p_cols:
+        if c in res.columns:
+            res[c] = pd.to_numeric(res[c], errors='coerce')
+    
+    if len(res) > 0 and len(fc_cols) > 0:
+        res['Max |log2FC|'] = res[fc_cols].abs().max(axis=1)
+        res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
+        
+        def get_direction(row):
+            mt = row['Max Time']
+            if pd.isna(mt) or mt not in row:
+                return 'N/A'
+            val = row[mt]
+            return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
+        
+        res['Direction'] = res.apply(get_direction, axis=1)
+        
+        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1, skipna=True) < p_thresh)]
+        
+        if not filtered.empty:
+            st.success(f"✅ Found {len(filtered)} matching proteins")
+            display_cols = ['Genes', 'Protein Name', 'Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
+            st.dataframe(filtered[display_cols], use_container_width=True, hide_index=True)
+            st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
+        else:
+            st.warning("No proteins meet the selected thresholds.")
     else:
-        st.error("No matches found — check debug info above")
+        st.info("No matching genes found.")
+
+st.caption("Try: Ca1, Alb, Col1a1")
