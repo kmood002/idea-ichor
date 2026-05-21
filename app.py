@@ -75,13 +75,13 @@ if query and models:
         hits = log2_df[mask].copy()
         if len(hits) > 0:
             for idx, row in hits.iterrows():
-                d2_fc = round(row.iloc[3], 2) if len(row) > 3 and pd.notna(row.iloc[3]) else None
-                d7_fc = round(row.iloc[4], 2) if len(row) > 4 and pd.notna(row.iloc[4]) else None
-                d14_fc = round(row.iloc[5], 2) if len(row) > 5 and pd.notna(row.iloc[5]) else None
+                d2_fc = round(float(row.iloc[3]), 2) if len(row) > 3 and pd.notna(row.iloc[3]) else None
+                d7_fc = round(float(row.iloc[4]), 2) if len(row) > 4 and pd.notna(row.iloc[4]) else None
+                d14_fc = round(float(row.iloc[5]), 2) if len(row) > 5 and pd.notna(row.iloc[5]) else None
                 
-                d2_p = round(p_df.iloc[idx, 3], 4) if len(p_df.columns) > 3 and pd.notna(p_df.iloc[idx, 3]) else None
-                d7_p = round(p_df.iloc[idx, 4], 4) if len(p_df.columns) > 4 and pd.notna(p_df.iloc[idx, 4]) else None
-                d14_p = round(p_df.iloc[idx, 5], 4) if len(p_df.columns) > 5 and pd.notna(p_df.iloc[idx, 5]) else None
+                d2_p = round(float(p_df.iloc[idx, 3]), 4) if len(p_df.columns) > 3 and pd.notna(p_df.iloc[idx, 3]) else None
+                d7_p = round(float(p_df.iloc[idx, 4]), 4) if len(p_df.columns) > 4 and pd.notna(p_df.iloc[idx, 4]) else None
+                d14_p = round(float(p_df.iloc[idx, 5]), 4) if len(p_df.columns) > 5 and pd.notna(p_df.iloc[idx, 5]) else None
                 
                 include = True
                 if fc_filter > 0:
