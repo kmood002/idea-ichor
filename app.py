@@ -16,57 +16,25 @@ def load_data():
 
 df = load_data()
 
-col1, col2, col3 = st.columns([3, 1.2, 1.2])
-with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1, Actg1")
-with col2:
-    fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
-with col3:
-    p_thresh = st.slider("p-value <", 0.0001, 0.1, 0.05, 0.001)
+query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name (comma-separated)", placeholder="Ca13, Alb, Gapdh, Col1a1, Actg1")
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)
+        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)   # Gene column
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)   # Protein Name column
     
     res = df[mask].copy()
     
-    fc_cols = df.columns[23:26].tolist()   # DAY2/NAIVE, DAY7/NAIVE, DAY14/NAIVE
-    p_cols = df.columns[26:29].tolist()
-    
-    for c in fc_cols + p_cols:
-        if c in res.columns:
-            res[c] = pd.to_numeric(res[c], errors='coerce')
-    
-    if len(res) > 0 and len(fc_cols) > 0:
-        res['Max |log2FC|'] = res[fc_cols].abs().max(axis=1)
-        res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
-        
-        def get_direction(row):
-            mt = row['Max Time']
-            val = row[mt] if mt in row else None
-            return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
-        
-        res['Direction'] = res.apply(get_direction, axis=1)
-        
-        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1, skipna=True) < p_thresh)]
-        
-        if not filtered.empty:
-            st.success(f"✅ Found {len(filtered)} matching proteins")
-            display = filtered.iloc[:, [1, 2]].copy()  # Gene, Protein Name
-            display.columns = ['Gene', 'Protein Name']
-            display['Max |log2FC|'] = filtered['Max |log2FC|']
-            display['Max Time'] = filtered['Max Time']
-            display['Direction'] = filtered['Direction']
-            display = pd.concat([display, filtered[fc_cols]], axis=1)
-            st.dataframe(display, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Results", filtered.to_csv(index=False), "dryeye_results.csv")
-        else:
-            st.warning("No proteins meet the thresholds.")
+    if len(res) > 0:
+        st.success(f"✅ Found {len(res)} matching proteins")
+        display = res.iloc[:, [1, 2]].copy()
+        display.columns = ['Gene', 'Protein Name']
+        st.dataframe(display, use_container_width=True, hide_index=True)
+        st.download_button("📥 Download Matching Rows", res.to_csv(index=False), "matches.csv")
     else:
-        st.info("No matching genes found.")
+        st.warning("No matching genes found. Try 'Ca13', 'Alb', or 'Gapdh'")
 
-st.caption("Ready for additional models/tissues. Let me know what to improve next.")
+st.caption("Basic search active. Thresholds and time-point highlighting will be re-added once search is confirmed working.")
