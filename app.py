@@ -4,18 +4,17 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-# Logo (place logo.png in the repo root)
-logo_path = "logo.png"
-if Path(logo_path).exists():
-    st.image(logo_path, width=250)
+# Logo
+if Path("logo.png").exists():
+    st.image("logo.png", width=250)
 else:
-    st.image("image.png", width=250)  # fallback if you uploaded image.png
+    st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 
 st.subheader("Ichor Differential Expression Atlas (IDEA)")
+st.caption("**Dry Eye Model Explorer**")
 
 # Load all data-*.xlsx files
 data_files = list(Path(".").glob("data-*.xlsx"))
-st.success(f"✅ Found {len(data_files)} model dataset(s)")
 
 models = {}
 for file in data_files:
@@ -33,6 +32,16 @@ for file in data_files:
         "meta": meta,
         "log2": log2
     }
+
+# Column toggles
+st.sidebar.header("Display Columns")
+show_gene = st.sidebar.checkbox("Gene", value=True)
+show_protein = st.sidebar.checkbox("Protein Name", value=True)
+show_model = st.sidebar.checkbox("Model", value=True)
+show_species = st.sidebar.checkbox("Species", value=True)
+show_strain = st.sidebar.checkbox("Strain", value=True)
+show_gender = st.sidebar.checkbox("Gender", value=True)
+show_tissue = st.sidebar.checkbox("Tissue", value=True)
 
 # Search
 query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
@@ -62,21 +71,36 @@ if query and models:
                     "Strain": meta.get("Strain", ""),
                     "Gender": meta.get("Gender", ""),
                     "Tissue": meta.get("Tissue", ""),
-                    "Day 2 vs NAIVE (log2FC)": round(row.iloc[3], 2) if len(row) > 3 else None,
-                    "Day 7 vs NAIVE (log2FC)": round(row.iloc[4], 2) if len(row) > 4 else None,
-                    "Day 14 vs NAIVE (log2FC)": round(row.iloc[5], 2) if len(row) > 5 else None,
+                    "Day 2 log2FC": round(row.iloc[3], 2) if len(row) > 3 else None,
+                    "Day 2 p-value": round(row.iloc[6], 4) if len(row) > 6 else None,
+                    "Day 7 log2FC": round(row.iloc[4], 2) if len(row) > 4 else None,
+                    "Day 7 p-value": round(row.iloc[7], 4) if len(row) > 7 else None,
+                    "Day 14 log2FC": round(row.iloc[5], 2) if len(row) > 5 else None,
+                    "Day 14 p-value": round(row.iloc[8], 4) if len(row) > 8 else None,
                 })
     
     if results:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # Column selection
+        cols_to_show = []
+        if show_model: cols_to_show.append("Model")
+        if show_gene: cols_to_show.append("Gene")
+        if show_protein: cols_to_show.append("Protein Name")
+        if show_species: cols_to_show.append("Species")
+        if show_strain: cols_to_show.append("Strain")
+        if show_gender: cols_to_show.append("Gender")
+        if show_tissue: cols_to_show.append("Tissue")
+        
+        cols_to_show.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
+                           "Day 14 log2FC", "Day 14 p-value"])
+        
+        st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
 
 # Footer
 st.markdown("---")
-st.markdown("**© Ichor Life Sciences, Inc.** All rights reserved. This tool and its contents are proprietary to Ichor Life Sciences. Unauthorized use or distribution is prohibited. [Visit ichorlifesciences.com](https://www.ichorlifesciences.com)")
-
-st.caption("Multi-model support active. Add more `data-*.xlsx` files as needed.")
+st.markdown("**© Ichor Life Sciences, Inc.** All rights reserved. This tool and its contents are proprietary to Ichor Life Sciences, Inc. Unauthorized use or distribution is prohibited. [www.ichorlifesciences.com](https://www.ichorlifesciences.com)")
