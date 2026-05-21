@@ -1,53 +1,71 @@
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
 st.markdown("<h1 style='color:#1a3c6e; text-align:center;'>Ichor Life Sciences</h1>", unsafe_allow_html=True)
 st.subheader("Differential Expression Atlas (IDEA)")
-st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Cornea | C57BL/6 Mice")
 
-@st.cache_data
-def load_data():
-    df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)
-    df.columns = [str(col).strip() for col in df.columns]
-    st.success(f"✅ Loaded {len(df):,} proteins")
-    return df
+# Load all data-* files
+data_files = list(Path(".").glob("data-*.xlsx"))
+st.success(f"✅ Found {len(data_files)} model dataset(s)")
 
-df = load_data()
+models = {}
+for file in data_files:
+    model_name = file.stem.replace("data-", "")
+    xls = pd.ExcelFile(file)
+    
+    cover = pd.read_excel(xls, "cover")
+    log2 = pd.read_excel(xls, "log2")
+    pval = pd.read_excel(xls, "p")
+    
+    models[model_name] = {
+        "cover": cover,
+        "log2": log2,
+        "p": pval
+    }
 
-query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1, Actg1")
+# Search
+query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
+                     placeholder="Ca1, Alb, Gapdh, P47739")
 
-if query:
+if query and models:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
+    results = []
     
-    mask = pd.Series(False, index=df.index)
-    for term in terms:
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Gene
-        mask |= df.iloc[:, 3].astype(str).str.upper().str.contains(term, na=False)  # Protein Name
+    for model_name, data in models.items():
+        df = data["log2"]
+        cover = data["cover"]
+        
+        mask = (df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+               (df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
+               (df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
+        
+        hits = df[mask].copy()
+        if len(hits) > 0:
+            meta = cover.iloc[0].to_dict()
+            for _, row in hits.iterrows():
+                results.append({
+                    "Model": model_name,
+                    "Protein Accession": row.iloc[0],
+                    "Gene": row.iloc[1],
+                    "Protein Name": row.iloc[2],
+                    "Species": meta.get("Species", ""),
+                    "Strain": meta.get("Strain", ""),
+                    "Gender": meta.get("Gender", ""),
+                    "Tissue": meta.get("Tissue", ""),
+                    "Day 2 log2FC": row.iloc[3],
+                    "Day 7 log2FC": row.iloc[4],
+                    "Day 14 log2FC": row.iloc[5],
+                })
     
-    res = df[mask].copy()
-    
-    if len(res) > 0:
-        st.success(f"✅ Found {len(res)} matching proteins")
-        
-        # Clean display
-        display = res.iloc[:, [2, 3]].copy()
-        display.columns = ['Gene', 'Protein Name']
-        
-        # Log2FC columns (DAY2, DAY7, DAY14 vs NAIVE) - positional from your file
-        fc_cols = df.columns[23:26].tolist()
-        for i, col in enumerate(fc_cols):
-            clean_name = f"DAY{i*5+2} vs NAIVE (log2FC)"
-            display[clean_name] = pd.to_numeric(res[col], errors='coerce').round(2)
-        
-        # Max differential
-        display['Max |log2FC|'] = display.iloc[:, 2:5].abs().max(axis=1).round(2)
-        display['Max Time'] = display.iloc[:, 2:5].abs().idxmax(axis=1)
-        
-        st.dataframe(display, use_container_width=True, hide_index=True)
-        st.download_button("📥 Download Results", res.to_csv(index=False), "dryeye_results.csv")
+    if results:
+        display_df = pd.DataFrame(results)
+        st.success(f"✅ Found {len(display_df)} matches across {len(models)} model(s)")
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
-        st.warning("No matching genes found. Try 'Ca1' or 'Alb'")
+        st.warning("No matching targets found.")
 
-st.caption("Ca1 should now appear with its three Log2FC values.")
+st.caption("Scalable multi-model support active. Add more `data-*.xlsx` files to expand.")
