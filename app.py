@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
@@ -38,7 +38,7 @@ for file in data_files:
         "pval": pval
     }
 
-# Sidebar Filters
+# Sidebar
 st.sidebar.header("Filters")
 fc_filter = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
 p_filter = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
@@ -127,7 +127,14 @@ if query and models:
         else:
             cols.extend([c for c in fc_p_cols if "log2FC" in c])
         
-        # Color coding
+        # Force string formatting for clean display
+        display_for_table = display_df[cols].copy()
+        for col in [c for c in cols if "log2FC" in c]:
+            display_for_table[col] = display_for_table[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "")
+        for col in [c for c in cols if "p-value" in c]:
+            display_for_table[col] = display_for_table[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "")
+        
+        # Color coding (applied to original numbers)
         def color_fc(val):
             if pd.isna(val):
                 return ''
@@ -135,7 +142,7 @@ if query and models:
                 return 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
             return ''
         
-        styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
+        styled = display_for_table.style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
