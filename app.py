@@ -36,16 +36,11 @@ for file in data_files:
         "pval": pval
     }
 
-# Sidebar Filters
+# Sidebar Filters (moved color coding below Display Columns)
 st.sidebar.header("Filters")
 fc_filter = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
 p_filter = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
 
-# Color Coding Threshold (Literature default ~1.0 = 2-fold)
-st.sidebar.header("Color Coding")
-fc_color_thresh = st.sidebar.slider("Color coding |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
-
-# Sidebar Column Toggles
 st.sidebar.header("Display Columns")
 show_model = st.sidebar.checkbox("Model", value=True)
 show_gene = st.sidebar.checkbox("Gene", value=True)
@@ -55,6 +50,9 @@ show_strain = st.sidebar.checkbox("Strain", value=True)
 show_gender = st.sidebar.checkbox("Gender", value=True)
 show_tissue = st.sidebar.checkbox("Tissue", value=True)
 show_pvalues = st.sidebar.checkbox("P-values", value=True)
+
+st.sidebar.header("Color Coding")
+fc_color_thresh = st.sidebar.slider("Color |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
 
 # Search
 query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
@@ -122,7 +120,7 @@ if query and models:
         cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
                     "Day 14 log2FC", "Day 14 p-value"])
         
-        # Color coding function
+        # Color coding
         def color_fc(val):
             if pd.isna(val):
                 return ''
