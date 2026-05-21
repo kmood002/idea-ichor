@@ -9,15 +9,9 @@ st.caption("**Model:** Scopolamine + Desiccating Stress Dry Eye | **Tissue:** Co
 
 @st.cache_data
 def load_data():
-    # Robust loading for this specific file
-    df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=1)
+    # Robust loading for this exact file
+    df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)  # Try header=2
     df.columns = [str(col).strip() for col in df.columns]
-    
-    # Fix common header issues in this file
-    if 'Genes' not in df.columns:
-        # Try skipping one more row if needed
-        df = pd.read_excel("Murray_ProteinReport_26-118.xlsx", sheet_name="FullReport", header=2)
-        df.columns = [str(col).strip() for col in df.columns]
     
     st.success(f"✅ Loaded {len(df):,} proteins")
     return df
@@ -43,7 +37,7 @@ if query:
     
     res = df[mask].copy()
     
-    fc_cols = [col for col in df.columns if col.startswith('DAY') and '/NAIVE' in col and not col.endswith('.1')]
+    fc_cols = [col for col in df.columns if col in ['DAY2/NAIVE', 'DAY7/NAIVE', 'DAY14/NAIVE']]
     p_cols = [col for col in df.columns if col.endswith('.1') and 'NAIVE' in col]
     
     for c in fc_cols + p_cols:
@@ -75,4 +69,4 @@ if query:
     else:
         st.info("No matching genes found.")
 
-st.caption("Try: Ca1, Alb, Col1a1")
+st.caption("Try searching: Ca1 or Alb")
