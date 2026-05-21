@@ -13,18 +13,22 @@ st.success(f"✅ Found {len(data_files)} model dataset(s)")
 
 models = {}
 for file in data_files:
-    model_name = file.stem.replace("data-", "")
+    model_key = file.stem.replace("data-", "")
     xls = pd.ExcelFile(file)
     
-    # Cover sheet (key-value format)
+    # Cover sheet - key-value + model name from B1
     cover = pd.read_excel(xls, "cover", header=None)
     meta = dict(zip(cover.iloc[:, 0].astype(str).str.strip(), cover.iloc[:, 1].astype(str).str.strip()))
+    
+    # Use cell B1 as the official Model name
+    model_name = meta.get("Model", model_key) if "Model" in meta else cover.iloc[0, 1] if len(cover) > 0 else model_key
     
     log2 = pd.read_excel(xls, "log2")
     
     models[model_name] = {
         "meta": meta,
-        "log2": log2
+        "log2": log2,
+        "key": model_key
     }
 
 # Search
@@ -39,7 +43,6 @@ if query and models:
         df = data["log2"]
         meta = data["meta"]
         
-        # Search across Accession (col 0), Gene (col 1), Protein Name (col 2)
         mask = (df.iloc[:, 0].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
                (df.iloc[:, 1].astype(str).str.upper().str.contains('|'.join(terms), na=False)) | \
                (df.iloc[:, 2].astype(str).str.upper().str.contains('|'.join(terms), na=False))
