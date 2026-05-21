@@ -16,60 +16,27 @@ def load_data():
 
 df = load_data()
 
+st.write("**First few rows for debugging:**")
+st.dataframe(df.iloc[:, :8].head(3), use_container_width=True)
+
 col1, col2, col3 = st.columns([3, 1.2, 1.2])
 with col1:
-    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1")
-with col2:
-    fc_thresh = st.slider("|log2FC| ≥", 0.0, 5.0, 1.0, 0.1)
-with col3:
-    p_thresh = st.slider("p-value <", 0.0001, 0.1, 0.05, 0.001)
+    query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh")
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
+    st.write("**Searching for:**", terms)
     
-    # Search in Gene (col 1) and Protein Name (col 2)
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)
+        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)  # Gene column
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Protein Name column
+    
+    st.write(f"**Raw matches found:** {mask.sum()}")
     
     res = df[mask].copy()
     
-    # Find FC columns by position (they are after the peptide counts)
-    fc_cols = []
-    for i, col in enumerate(df.columns):
-        if str(col).startswith('DAY') and '/NAIVE' in str(col) and not str(col).endswith('.1'):
-            fc_cols.append(col)
-    
-    p_cols = [col for col in df.columns if str(col).endswith('.1') and 'NAIVE' in str(col)]
-    
-    for c in fc_cols + p_cols:
-        if c in res.columns:
-            res[c] = pd.to_numeric(res[c], errors='coerce')
-    
-    if len(res) > 0 and len(fc_cols) > 0:
-        res['Max |log2FC|'] = res[fc_cols].abs().max(axis=1)
-        res['Max Time'] = res[fc_cols].abs().idxmax(axis=1)
-        
-        def get_direction(row):
-            mt = row['Max Time']
-            if pd.isna(mt) or mt not in row:
-                return 'N/A'
-            val = row[mt]
-            return '↑ Up' if pd.notna(val) and val > 0 else '↓ Down'
-        
-        res['Direction'] = res.apply(get_direction, axis=1)
-        
-        filtered = res[(res['Max |log2FC|'] >= fc_thresh) & (res[p_cols].min(axis=1, skipna=True) < p_thresh)]
-        
-        if not filtered.empty:
-            st.success(f"✅ Found {len(filtered)} matching proteins")
-            display_cols = list(df.columns[1:3]) + ['Max |log2FC|', 'Max Time', 'Direction'] + fc_cols
-            st.dataframe(filtered[display_cols], use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Results", filtered.to_csv(index=False), "results.csv")
-        else:
-            st.warning("No proteins meet the selected thresholds.")
+    if len(res) > 0:
+        st.dataframe(res.iloc[:, :8], use_container_width=True)
     else:
-        st.info("No matching genes found.")
-
-st.caption("Test searches: Ca1, Alb, Gapdh, Col1a1")
+        st.error("No matches — please tell me what the debug info above shows.")
