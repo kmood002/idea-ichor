@@ -16,27 +16,37 @@ def load_data():
 
 df = load_data()
 
-st.write("**Debug: First 5 rows, first 10 columns**")
-st.dataframe(df.iloc[:5, :10], use_container_width=True)
-
-query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1")
+query = st.text_input("🔍 Enter Gene Symbol(s) or Protein Name", placeholder="Ca1, Alb, Gapdh, Col1a1, Actg1")
 
 if query:
     terms = [t.strip().upper() for t in query.split(",") if t.strip()]
     
     mask = pd.Series(False, index=df.index)
     for term in terms:
-        mask |= df.iloc[:, 1].astype(str).str.upper().str.contains(term, na=False)  # Gene
-        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)  # Protein Name
+        mask |= df.iloc[:, 2].astype(str).str.upper().str.contains(term, na=False)   # Gene (index 2)
+        mask |= df.iloc[:, 3].astype(str).str.upper().str.contains(term, na=False)   # Protein Name (index 3)
     
     res = df[mask].copy()
     
-    st.success(f"✅ Found {len(res)} matching rows for '{query}'")
-    
     if len(res) > 0:
-        display = res.iloc[:, [1, 2]].copy()
+        st.success(f"✅ Found {len(res)} matching proteins")
+        
+        # Clean display
+        display = res.iloc[:, [2, 3]].copy()
         display.columns = ['Gene', 'Protein Name']
+        
+        # Add Log2FC columns (they start around column 23-25)
+        fc_cols = df.columns[23:26].tolist()   # DAY2/NAIVE, DAY7/NAIVE, DAY14/NAIVE
+        for i, col in enumerate(fc_cols):
+            display[col] = pd.to_numeric(res[col], errors='coerce').round(2)
+        
+        # Max differential
+        display['Max |log2FC|'] = display[fc_cols].abs().max(axis=1).round(2)
+        display['Max Time'] = display[fc_cols].abs().idxmax(axis=1)
+        
         st.dataframe(display, use_container_width=True, hide_index=True)
-        st.download_button("📥 Download Matching Rows", res.to_csv(index=False), "matches.csv")
+        st.download_button("📥 Download Results", res.to_csv(index=False), "dryeye_results.csv")
     else:
-        st.warning("No matches found. Check debug table above for column structure.")
+        st.warning("No matching genes found.")
+
+st.caption("Test: Ca1, Alb, Gapdh, Col1a1")
