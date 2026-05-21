@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
@@ -36,7 +37,7 @@ for file in data_files:
         "pval": pval
     }
 
-# Sidebar Filters (moved color coding below Display Columns)
+# Sidebar Filters
 st.sidebar.header("Filters")
 fc_filter = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
 p_filter = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
@@ -110,6 +111,7 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
+        # Column order
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
@@ -117,8 +119,13 @@ if query and models:
         if show_gender: cols.append("Gender")
         if show_tissue: cols.append("Tissue")
         
-        cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
-                    "Day 14 log2FC", "Day 14 p-value"])
+        fc_p_cols = ["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
+                    "Day 14 log2FC", "Day 14 p-value"]
+        
+        if show_pvalues:
+            cols.extend(fc_p_cols)
+        else:
+            cols.extend([c for c in fc_p_cols if "log2FC" in c])
         
         # Color coding
         def color_fc(val):
@@ -131,6 +138,20 @@ if query and models:
         styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
+        
+        # Volcano Plot Button
+        if st.button("Show Volcano Plot (Day 7)"):
+            plot_df = display_df.copy()
+            plot_df['-log10(p-value)'] = -np.log10(plot_df['Day 7 p-value'].replace(0, 1e-10))
+            fig = px.scatter(plot_df, x="Day 7 log2FC", y="-log10(p-value)", 
+                            hover_data=["Gene", "Protein Name"],
+                            title="Volcano Plot - Day 7 vs NAIVE",
+                            labels={"Day 7 log2FC": "log2 Fold Change"})
+            fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")
+            fig.add_vline(x=1, line_dash="dash", line_color="gray")
+            fig.add_vline(x=-1, line_dash="dash", line_color="gray")
+            st.plotly_chart(fig, use_container_width=True)
+        
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
