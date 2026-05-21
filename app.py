@@ -134,9 +134,7 @@ if query and models:
                 return 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
             return ''
         
-        styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c]) \
-                                     .format({col: "{:.2f}" for col in cols if "log2FC" in col}) \
-                                     .format({col: "{:.4f}" for col in cols if "p-value" in col})
+        styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
         
         st.dataframe(styled, use_container_width=True, hide_index=True)
         
