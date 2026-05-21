@@ -38,8 +38,12 @@ for file in data_files:
 
 # Sidebar Filters
 st.sidebar.header("Filters")
-fc_thresh = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
-p_thresh = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
+fc_filter = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
+p_filter = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
+
+# Color Coding Threshold (Literature default ~1.0 = 2-fold)
+st.sidebar.header("Color Coding")
+fc_color_thresh = st.sidebar.slider("Color coding |log2FC| threshold", 0.0, 5.0, 1.0, 0.1)
 
 # Sidebar Column Toggles
 st.sidebar.header("Display Columns")
@@ -81,10 +85,10 @@ if query and models:
                 d14_p = p_df.iloc[idx, 5] if len(p_df.columns) > 5 else None
                 
                 include = True
-                if fc_thresh > 0:
-                    include &= any(abs(x or 0) >= fc_thresh for x in [d2_fc, d7_fc, d14_fc])
-                if p_thresh < 0.1:
-                    include &= any((x or 1) < p_thresh for x in [d2_p, d7_p, d14_p])
+                if fc_filter > 0:
+                    include &= any(abs(x or 0) >= fc_filter for x in [d2_fc, d7_fc, d14_fc])
+                if p_filter < 0.1:
+                    include &= any((x or 1) < p_filter for x in [d2_p, d7_p, d14_p])
                 
                 if include:
                     results.append({
@@ -108,7 +112,6 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
-        # Column order
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
@@ -119,12 +122,13 @@ if query and models:
         cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
                     "Day 14 log2FC", "Day 14 p-value"])
         
-        # Apply color styling
+        # Color coding function
         def color_fc(val):
             if pd.isna(val):
                 return ''
-            color = 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
-            return color
+            if abs(val) >= fc_color_thresh:
+                return 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
+            return ''
         
         styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
         
