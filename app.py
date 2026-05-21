@@ -4,7 +4,7 @@ from pathlib import Path
 
 st.set_page_config(page_title="Ichor Life Sciences • IDEA", layout="wide")
 
-# Logo - Reverted to simple left-aligned version
+# Logo
 logo_path = "logo.png"
 if Path(logo_path).exists():
     st.image(logo_path, width=320)
@@ -38,8 +38,8 @@ for file in data_files:
 
 # Sidebar Filters
 st.sidebar.header("Filters")
-fc_thresh = st.sidebar.slider("|log2FC| ≥ (0 = no filter)", 0.0, 5.0, 0.0, 0.1)
-p_thresh = st.sidebar.slider("p-value < (0.1 = no filter)", 0.0001, 0.1, 0.1, 0.001)
+fc_thresh = st.sidebar.slider("|log2FC| ≥ (0 = show all)", 0.0, 5.0, 0.0, 0.1)
+p_thresh = st.sidebar.slider("p-value < (0.1 = show all)", 0.0001, 0.1, 0.1, 0.001)
 
 # Sidebar Column Toggles
 st.sidebar.header("Display Columns")
@@ -50,6 +50,7 @@ show_species = st.sidebar.checkbox("Species", value=True)
 show_strain = st.sidebar.checkbox("Strain", value=True)
 show_gender = st.sidebar.checkbox("Gender", value=True)
 show_tissue = st.sidebar.checkbox("Tissue", value=True)
+show_pvalues = st.sidebar.checkbox("P-values", value=True)
 
 # Search
 query = st.text_input("🔍 Search by Protein Accession, Gene, or Protein Name", 
@@ -107,6 +108,7 @@ if query and models:
         display_df = pd.DataFrame(results)
         st.success(f"✅ Found {len(display_df)} matches")
         
+        # Column order
         cols = ["Protein Accession", "Gene", "Protein Name"]
         if show_model: cols.append("Model")
         if show_species: cols.append("Species")
@@ -117,7 +119,16 @@ if query and models:
         cols.extend(["Day 2 log2FC", "Day 2 p-value", "Day 7 log2FC", "Day 7 p-value", 
                     "Day 14 log2FC", "Day 14 p-value"])
         
-        st.dataframe(display_df[cols], use_container_width=True, hide_index=True)
+        # Apply color styling
+        def color_fc(val):
+            if pd.isna(val):
+                return ''
+            color = 'background-color: #90EE90' if val > 0 else 'background-color: #FFB3B3'
+            return color
+        
+        styled = display_df[cols].style.map(color_fc, subset=[c for c in cols if "log2FC" in c])
+        
+        st.dataframe(styled, use_container_width=True, hide_index=True)
         st.download_button("📥 Download Results", display_df.to_csv(index=False), "idea_results.csv")
     else:
         st.warning("No matching targets found.")
